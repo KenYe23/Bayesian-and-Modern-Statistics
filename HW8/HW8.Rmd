@@ -1,0 +1,229 @@
+---
+---
+---
+
+# STA360 Homework 8 (Ken Ye)
+
+```{r}
+library(latex2exp)
+library(ggplot2)
+library(MASS)
+library(ggrepel)
+library(mvtnorm)
+set.seed(0)
+```
+
+## Question 3
+
+```{r}
+# load diabetes data
+yX <- dget(url("https://www2.stat.duke.edu/~pdh10/FCBS/Inline/yX.diabetes.train"))
+y <- yX[,1]
+X <- yX[,-1]
+```
+
+### Part a
+
+```{r}
+# compute beta_lambda hat for each lambda in {0, ..., 100}
+lambdas <- seq(0, 100, by = 1)
+beta_lambdas <- matrix(0, nrow = 64, ncol = 101)
+for (lam in lambdas){
+  beta_lambda <- solve(t(X) %*% X + lam * diag(rep(1, 64))) %*% t(X) %*% y
+  beta_lambdas[,lam+1] <- beta_lambda
+}
+```
+
+```{r}
+# plot with matplot
+matplot(beta_lambdas, 
+        type = 'l',
+        main = 'Beta_lambda vs X Under Different Lambdas',
+        ylab = 'Beta_lambda',
+        xlab = 'X Variable Index')
+```
+
+There are 101 lines representing 101 beta_lambda vectors (each 64 by 1) and their respective value for each X variable. It's hard to discern a single beta_lambda vector in the graph because there are so many of them, but this graph shows the beta_lambda estimate for each lambda in {0, 1, ... , 99, 100}, and for each beta_lambda, how its beta_lambda_i varies for each X_i, for i from 1 to 64 (there are 64 x variables in total).
+
+\newpage
+
+### Part b
+
+```{r}
+# load diabetes data, test set
+yX.test <- dget(url("https://www2.stat.duke.edu/~pdh10/FCBS/Inline/yX.diabetes.test"))
+y.test <- yX.test[,1]
+X.test <- yX.test[,-1]
+```
+
+```{r}
+# calculate predictive error sum of squares
+PSS <- rep(0,101)
+for (i in 1:101){
+  PSS[i] <- sum((y.test - (X.test %*% beta_lambdas[,i]))^2)
+}
+```
+
+```{r}
+# plot
+plot(PSS, 
+     main = 'Predictive Error Sum of Squares For Each Lambda',
+     ylab = 'PSS',
+     xlab = 'Lambda')
+```
+
+```{r}
+# OLS estimate predictive error sum of squares
+PSS[1]
+```
+
+We know that beta_OLS = beta_lambda when lambda = 0. The unbiased OLS estimate for prediction has a predictive error sum of squares of 67.07, which is the highest among all beta estimates (which can be told from the graph). Beta_OLS doesn't perform well.
+
+\newpage
+
+### Part c
+
+```{r}
+# identify the value of lambda that has the best predictive performance
+index <- which.min(PSS)
+# this is the index, the value of lambda =  index - 1 since lambda starts from 0
+index
+```
+
+The value of lambda that has the best predictive performance is lambda = 64.
+
+```{r}
+# find x-variables that have the largest effects
+beta_lambda.best <- array(beta_lambdas[,65])
+names(beta_lambda.best) <- colnames(X.test)
+sort(beta_lambda.best, decreasing = TRUE)
+```
+
+The x-variables that have the largest effects (top 5) are bmi, ltg, map, age:ltg, and tch. The rest are printed above in decreasing effect order.
+
+\newpage
+
+## Question 4
+
+```{r}
+# load water data
+yX <- readRDS("yXSS.rds")
+y <- yX[,1]
+X <- yX[,-1]
+```
+
+```{r}
+# view image
+y <- yX[,1]
+image(matrix(y,151,43))
+```
+
+### Part a
+
+```{r}
+# obtain posterior distribution of beta and sigma2 given y with MCMC
+
+n <- dim(X)[1]
+p <- dim(X)[2]
+
+# priors
+nu.0 <- 1
+beta.0 <- rep(1/9, p)
+sigma.0 <- matrix(0, p, p)
+diag(sigma.0) <- 1 # sigma.0 = I_9
+sigma2.0 <- diag(p)
+sample.size <- 10000
+BETA <- matrix(nrow = sample.size, ncol = p) # posterior storage
+SIGMA2 <- rep(NA, sample.size) # posterior storage
+
+# common quantities
+X <- as.matrix(X)
+y <- as.matrix(y)
+isigma.0 <- solve(sigma.0)
+XtX <- t(X) %*% X
+Xty <- t(X) %*% y
+
+# start values
+sigma2 <- var(residuals(lm(y ~ 0 + X)))
+
+# Gibbs sampling
+for (s in 1 : sample.size) {
+  # update beta
+  beta.V <- solve(isigma.0 + XtX / sigma2)
+  beta.E <- beta.V %*% (isigma.0 %*% beta.0 + Xty / sigma2)
+  beta <- mvrnorm(1, beta.E, beta.V)
+
+  # update sigma2
+  nu.n <- nu.0 + n
+  ss.n <- nu.0 * sigma2.0 + sum((y - X %*% beta)^2)
+  sigma2 <- 1/rgamma(1, nu.n / 2, ss.n / 2)
+  
+  # store sample
+  BETA[s,] <- beta
+  SIGMA2[s] <- sigma2
+}
+```
+
+```{r}
+# posterior distribution of sigma2 
+plot(density(SIGMA2),
+     main = 'Posterior Distribution of Sigma Squared',
+     xlab = 'Sigma Squared')
+```
+
+```{r}
+# 95% confidence intervals for each element of beta
+CI <- NULL
+for (i in 1: dim(BETA)[2]){
+  print(paste('The 95% CI for Beta', i, "is: "))
+  print(quantile(BETA[,i], c(0.0025, 0.975)))
+  CI <- c(CI, quantile(BETA[,i], c(0.0025, 0.975)))
+}
+```
+
+Effluent, soil, street (weak, very small coefficient), and swine are the main sources of the water sample as their 95% CI do not contain 0.
+
+\newpage
+
+### Part b
+
+```{r}
+# check constant variance condition
+
+# obtain residual 
+beta.mean <- apply(BETA, 2, mean)
+y.pred <- X %*% beta.mean
+residual <- y - y.pred
+
+# residual plot
+plot(y, residual,
+    main = 'Residuals vs Fitted Values',
+    ylab = 'Residuals',
+    xlab = 'Fitted Values')
+abline(0,0)
+```
+
+The constant variance condition seems to be violated as the residuals are not randomly spread across all fitted values of y. In fact, as the fitted value increases, the residual increases.
+
+#### Check Independence Condition
+
+The independence condition seems to be satisfied since y is the vectorization of a spectroscopy image of a water sample taken from the Neuse River in North Carolina. It is reasonable to assume the entries of the vectors are uncorrelated.
+
+```{r}
+# check normal condition
+# distribution of y
+hist(residual,
+     main = 'Distribution of Residuals',
+     xlab = 'Residuals',
+     breaks = 30)
+```
+
+The distribution of the residuals approximately normal, and the sample size is larger than 30, thus the normal condition is satisfied.
+
+\newpage
+
+### Part c
+
+Since it doesn't make sense for the coefficients of beta to be negative, a modification to the prior distribution for beta could be picking a distribution with a positive support, such as beta or gamma.
+
+Suppose we use beta distribution as the prior distribution for beta. We first need to derive the posterior distribution of beta. For the Gibbs sampler, with starting values for sigma2 and beta, in each iteration we update and get a new beta from the posterior calculation formula, and get a new sigma2 (just as we did in part a). In the end, we would get a storage vector BETA of all positive values, since beta distribution lies in the first quadrant.

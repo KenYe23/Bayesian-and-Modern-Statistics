@@ -1,0 +1,61 @@
+```{r}
+library(tidyverse)
+dt <- read_rds('goals.rds')
+```
+```{r}
+# question d
+# hyperparameter/data
+a <- 2
+b <- 2
+alpha <- 5
+beta <- 5
+y <- dt$goals
+n <- length(y)
+
+# number of sim and burn-in
+nsim <- 5e4
+burnin <- 1e4
+
+# store sim
+samples <- list(
+  "x" = rep(list(0), times = nsim - burnin),
+  "p" = rep(0, times = nsim - burnin),
+  "lambda0" = rep(0, times = nsim - burnin),
+  "lambda1" = rep(0, times = nsim - burnin)
+)
+
+# initial values
+p <- 0.5
+lambda0 <- mean(y)
+lambda1 <- mean(y)
+x <- rbinom(n = 40, size = 1, p)
+
+set.seed(42)
+for (i in 1:nsim){
+  # sim x
+  numerator <- p*dpois(y, lambda1)
+  denominator <- numerator + (1-p)*dpois(y, lambda0)
+  x <- rbinom(n = n, size = 1, prob = numerator/denominator)
+  # sim p
+  p <- rbeta(n = 1, a + sum (x), b + n - sum(x))
+  # sim lambda0
+  lambda0 <- rgamma(n=1, alpha + sum(y[x == 0]), beta + n - sum(x))
+  # sim lambda1
+  lambda1 <- rgamma(n=1, alpha + sum(y[x == 1]), beta + sum(x))
+  
+  # store values
+  if (i > burnin) {
+    samples$x[[i-burnin]] <- x
+    samples$p[[i-burnin]] <- p
+    samples$lambda0[[i-burnin]] <- lambda0
+    samples$lambda1[[i-burnin]] <- lambda1
+  }
+}
+```
+
+```{r}
+par(mfrow = c(2,1))
+plot(samples$lambda0, type = 'l')
+plot(samples$lambda1, type = 'l')
+```
+

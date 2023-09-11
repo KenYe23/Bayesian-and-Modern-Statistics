@@ -1,0 +1,145 @@
+STA360 Homework 5 (Ken Ye)
+
+```{r}
+library(latex2exp)
+set.seed(0)
+```
+
+#3
+
+a\.
+
+```{r}
+# data
+ya <- c(12, 9, 12, 14, 13, 13, 15, 8, 15, 6)
+na <- length(ya)
+yb <- c(11, 11, 10, 9, 9, 8, 7, 10, 6, 8, 8, 9, 7)
+nb <- length(yb)
+```
+
+```{r}
+mc.size <- 1000
+thetas <- rgamma(mc.size, 120, 10)
+gammas <- rgamma(mc.size, 10, 10)
+thetas.a <- thetas
+thetas.b <- thetas * gammas
+plot(thetas.a, thetas.b, 
+     main = TeX('\\theta$_B$ vs \\theta$_A$ (MC)'),
+     xlab = TeX('\\theta$_A$'),
+     ylab = TeX('\\theta$_B$'))
+```
+
+```{r}
+# correlation
+cor(thetas.a,thetas.b)
+```
+
+According to the scatter plot and the correlation calculation, it seems that $\theta_A$ and $\theta_B$ are dependent, as the graph shows a positive relationship between $\theta_A$ and $\theta_B$ (as $\theta_A$ increases, $\theta_B$ generally increases), and their correlation is 0.274, which is nonzero and positive.
+
+c\.
+
+```{r}
+# Gibbs sampling
+gibbs.size <- 5000
+theta0 <- rgamma(1, 120, 10)
+gamma0 <- rgamma(1, 10, 10)
+
+THETA <- matrix(nrow = gibbs.size, ncol = 2)
+THETA[1,] <- theta <- c(theta0, gamma0)
+
+for (s in 2 : gibbs.size){
+theta[1] <- rgamma(1, sum(ya) + sum(yb) + 120, na + nb * theta[2] + 10)
+theta[2] <- rgamma(1, sum(yb) + 10, nb * theta[1] + 10)
+THETA[s,] <- theta
+}
+
+thetas.a2 <- THETA[,1]
+thetas.b2 <- THETA[,1] * THETA[,2]
+```
+
+```{r}
+# plot
+plot(thetas.a2, thetas.b2, 
+     main = TeX('\\theta$_B$ vs \\theta$_A$ (Gibbs)'),
+     xlab = TeX('\\theta$_A$'),
+     ylab = TeX('\\theta$_B$'))
+```
+
+```{r}
+# posteior mean
+print(mean(thetas.b2 - thetas.a2))
+```
+
+The MCMC estimate for the posterior mean of $\theta_B - \theta_A$ is -2.81984.
+
+```{r}
+# confidence interval
+quantile(thetas.b2 - thetas.a2, c(0.025, 0.975))
+```
+
+The MCMC 95% confidence interval for the posterior mean of $\theta_B - \theta_A$ is (-4.8894486, -0.7468116).
+
+d\.
+
+```{r}
+# mc
+mc.size <- 1000
+thetas <- rgamma(mc.size, 120, 10)
+gammas <- rgamma(mc.size, 45, 45)
+thetas.a <- thetas
+thetas.b <- thetas * gammas
+plot(thetas.a, thetas.b, 
+     main = TeX('\\theta$_B$ vs \\theta$_A$ (MC)'),
+     xlab = TeX('\\theta$_A$'),
+     ylab = TeX('\\theta$_B$'))
+```
+
+```{r}
+# correlation
+cor(thetas.a,thetas.b)
+```
+
+```{r}
+# Gibbs sampling
+gibbs.size <- 5000
+theta0 <- rgamma(1, 120, 10)
+gamma0 <- rgamma(1, 45, 45)
+
+THETA <- matrix(nrow = gibbs.size, ncol = 2)
+THETA[1,] <- theta <- c(theta0, gamma0)
+
+for (s in 2 : gibbs.size){
+theta[1] <- rgamma(1, sum(ya) + sum(yb) + 120, na + nb * theta[2] + 10)
+theta[2] <- rgamma(1, sum(yb) + 45, nb * theta[1] + 45)
+THETA[s,] <- theta
+}
+
+thetas.a2 <- THETA[,1]
+thetas.b2 <- THETA[,1] * THETA[,2]
+```
+
+```{r}
+# plot
+plot(thetas.a2, thetas.b2, 
+     main = TeX('\\theta$_B$ vs \\theta$_A$ (Gibbs)'),
+     xlab = TeX('\\theta$_A$'),
+     ylab = TeX('\\theta$_B$'))
+```
+
+```{r}
+# posteior mean
+print(mean(thetas.b2 - thetas.a2))
+```
+
+The MCMC estimate for the posterior mean of $\theta_B - \theta_A$ is -2.103156.
+
+```{r}
+# confidence interval
+quantile(thetas.b2 - thetas.a2, c(0.025, 0.975))
+```
+
+The MCMC 95% confidence interval for the posterior mean of $\theta_B - \theta_A$ is (-3.9479005, -0.2856949).
+
+After changing the prior of $\gamma$ to gamma(45,45), in the MC simulation, the graph still shows a stronger positive relationship between $\theta_A$ and $\theta_B$ (as $\theta_A$ increases, $\theta_B$ generally increases), and their correlation is larger (0.521). In addition, according to the graph, the distribution is more concentrated, indicating lower variance.
+
+On the other hand, in the Gibbs sampling simulation, the MCMC estimate of $\theta_B - \theta_A$ increases from -2.81984 to -2.103156, and the 95% confidence interval changes from (-4.8894486, -0.7468116) to (-3.9479005, -0.2856949). In addition, according to the graph, similar to what we observe in MC, the distribution is more concentrated, indicating lower variance.

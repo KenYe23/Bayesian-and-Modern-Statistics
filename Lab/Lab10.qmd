@@ -1,0 +1,68 @@
+```{r}
+library(tidyverse)
+dt <- read.csv('dt_release.csv')
+```
+
+```{r}
+dt |>
+  ggplot(aes(x = DAYS)) +
+  geom_density()
+```
+
+```{r}
+dt |>
+  ggplot(aes(x = RR, y = DAYS)) +
+  geom_boxplot()
+```
+
+```{r}
+dt |>
+  ggplot(aes (y= DAYS, x = AGE )) +
+  geom_point() +
+  geom_smooth()
+```
+
+```{r}
+y <- matrix(dt$DAYS, ncol = 1)
+
+# model.matrix(DAYS ~., data = dt)
+dt_relevel <- dt |> 
+  mutate(across(c(SEX, RR), factor)) |>
+  mutate(RR = relevel(RR, ref = "TIME")) |>
+  mutate(SEX = relevel(SEX, ref = "NON-MALE"))
+
+X <- model.matrix(DAYS ~., data = dt_relevel)
+
+beta_ols <- solve(t(X) %*% X) %*% t(X) %*% y
+beta_ols
+```
+
+```{r}
+y_resid <- y - X %*% beta_ols
+```
+
+```{r}
+hist(y_resid)
+# violation of normal assumption
+```
+
+```{r}
+plot( X %*% beta_ols, y_resid )
+```
+
+```{r}
+plot(1:length(y_resid))
+```
+
+```{r}
+plot(dt$AGE ~ y_resid)
+```
+
+```{r}
+lin_mod <- lm(DAYS ~. + I(AGE^2), data = dt_relevel)
+summary(lin_mod)
+```
+
+```{r}
+
+```

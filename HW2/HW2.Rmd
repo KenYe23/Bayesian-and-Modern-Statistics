@@ -1,0 +1,77 @@
+---
+---
+---
+
+```{r}
+library(latex2exp)
+```
+
+#1
+
+c)  
+
+```{r}
+eta <- seq(0, 1, length.out = 1000)
+corr <- 1/(2*eta+1)
+plot(eta, corr,
+     main = TeX('$Corr[Y_1, Y_2] \\ vs. \\ \\eta$'),
+     xlab = TeX('$\\eta$'),
+     ylab = TeX('$Corr[Y_1, Y_2]$'))
+```
+
+\newpage
+
+#3
+
+a)  
+
+```{r}
+theta <- seq(0, 1, length.out = 1000)
+
+# prior theta
+plot(theta, dbeta(theta, 2, 30),
+     col = 'blue',
+     type = 'l',
+     main = TeX('$Distribution \\ of \\ \\theta$'),
+     xlab = TeX('$\\theta$'),
+     ylab = TeX('$PDF(\\theta)$'),
+     ylim = c(0, 25))
+
+# posterior theta_1
+lines(theta, dbeta(theta, 3, 48),
+      col = 'red')
+
+# posterior theta_2
+lines(theta, dbeta(theta, 18, 190),
+      col = 'green')
+
+legend(0.5,15, 
+       legend = c(TeX('$Prior \\ \\theta$'), TeX('$Posterior \\ \\theta_1'), TeX('$Posterior \\ \\theta_2')),
+       fill = c('blue', 'red', 'green'))
+```
+
+\newpage
+
+#3
+
+b)  
+
+```{r}
+# posterior theta_1
+a1 <- 3
+b1 <- 48
+mean1 <- a1/(a1+b1)
+CI1 <- qbeta(c(0.025, 0.975), a1, b1)
+print(mean1)
+print(CI1)
+```
+
+```{r}
+# posterior theta_2
+a2 <- 18
+b2 <- 190
+mean2 <- a2/(a2+b2)
+CI2 <- qbeta(c(0.025, 0.975), a2, b2)
+print(mean2)
+print(CI2)
+```

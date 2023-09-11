@@ -1,0 +1,247 @@
+# STA360 Homework 9 (Ken Ye)
+
+```{r}
+library(latex2exp)
+library(ggplot2)
+library(MASS)
+library(ggrepel)
+library(mvtnorm)
+set.seed(0)
+```
+
+## Question 3 (Book Exercise 9.2)
+
+```{r}
+# load diabetes data
+diabetes <- read.table("azdiabetes.dat", header =  TRUE)
+diabetes <- diabetes[,-8]
+y <- diabetes[-1,2]
+X <- diabetes[-1,-2]
+y <- as.matrix(y)
+X <- as.matrix(X)
+y <- y - mean(y)
+for (col in col(X)){
+  X[, col] <- X[, col] - mean(X[, col])
+}
+n <- dim(X)[1]
+p <- dim(X)[2]
+```
+
+### Part a
+
+```{r}
+# MC
+
+# priors
+g <- length(y)
+nu0 <- 2 
+s20 <- 1
+S <- 1000
+
+Hg <- (g / (g + 1)) * X %*% solve(t(X) %*% X) %*% t(X)
+SSRg <- t(y) %*% (diag(1, nrow = n) - Hg) %*% y
+s2 <- 1 / rgamma(S, (nu0 + n) / 2, (nu0 * s20 + SSRg) / 2)
+Vb <- g * solve(t(X) %*% X) / (g + 1)
+Eb <- Vb %*% t(X) %*% y
+E <- matrix(rnorm(S*p,0 ,sqrt(s2)),S ,p)
+beta <- t(t(E %*% chol(Vb)) + c(Eb))
+```
+
+```{r}
+# posterior confidence intervals
+for (col in 1:ncol(beta)) {
+  print(quantile(beta[, col], c(0.025, 0.975)))
+}
+```
+
+The 95% posterior confidence intervals for "npreg", "bp", "skin", "bmi", "ped", and "age" are (-1.6523894, 0.3591608), (-0.02570705, 0.42447760), (-0.1385321, 0.5060806), (0.149078, 1.165557), (3.484193, 17.869760), and (0.4443995, 1.0598537), respectively.
+
+\newpage
+
+### Part b
+
+```{r}
+# function to compute marginal prob
+lpy.X <- function(y, X, g = length(y), nu0 = 1, 
+                  s20 = try(summary(lm(y ~ -1 + X))$sigma^2, silent = TRUE)) {
+n <- dim(X)[1]
+p <- dim(X)[2]
+
+if(p == 0) {
+  Hg <- 0
+  s20 <- mean(y^2) 
+}
+
+if(p > 0) { 
+  Hg <- (g / (g + 1)) * X %*% solve(t(X) %*% X) %*% t(X)
+}
+
+SSRg <- t(y) %*% (diag(1, nrow = n) - Hg) %*% y
+  
+-0.5 * (n * log(pi) + p * log(1 + g) + (nu0 + n) * log(nu0 * s20 + SSRg) - nu0 * log(nu0 * s20)) + 
+lgamma((nu0 + n) / 2) - lgamma(nu0 / 2)
+}
+```
+
+```{r}
+lm.gprior <- function(y, X, g = dim(X)[1], nu0 = 1, s20 = try(summary(lm(y~-1+X))$sigma^2,silent=TRUE),S=1000)
+{
+  n <- dim(X)[1] ; p<-dim(X)[2]
+  Hg <- (g/(g+1)) * X%*%solve(t(X)%*%X)%*%t(X)
+  SSRg <- t(y)%*%( diag(1,nrow=n)  - Hg ) %*%y
+
+  s2 <- 1/rgamma(S, (nu0+n)/2, (nu0*s20+SSRg)/2 )
+
+  Vb <- g*solve(t(X)%*%X)/(g+1)
+  Eb <- Vb%*%t(X)%*%y
+
+  E <- matrix(rnorm(S*p,0,sqrt(s2)),S,p)
+  beta <- t(t(E%*%chol(Vb)) +c(Eb))
+
+  list(beta=beta,s2=s2)                                
+}   
+```
+
+```{r}
+# MCMC
+
+# starting values
+z <- rep(1, dim(X)[2])
+lpy.c <- lpy.X(y, X[, z == 1, drop = FALSE])
+S <- 10000
+Z <- matrix(NA, S, dim(X)[2])
+BETA <- matrix(NA, S, dim(X)[2])
+
+# Gibbs sampler
+for (s in 1 : S) {
+  for (j in sample(1 : dim(X)[2])){
+    # update each z
+    zp <- z
+    zp[j] <- 1 - zp[j]
+    lpy.p <- lpy.X(y, X[, zp == 1, drop = FALSE])
+    r <- (lpy.p - lpy.c) * (-1)^(zp[j] == 0)
+    z[j] <- rbinom(1, 1, 1 / (1 + exp(-r)))
+    if (z[j] == zp[j]) { 
+      lpy.c <- lpy.p
+    }
+  }
+  
+  beta <- z
+  if (sum(z) > 0){
+    beta[z == 1] <- lm.gprior(y, X[, z == 1, drop = FALSE], S = 1)$beta
+  }
+  
+  Z[s,] <- z
+  BETA[s,] <- beta
+}
+```
+
+```{r}
+# prob beta_j not equal to 0
+for (col in 1:ncol(BETA)) {
+  print(mean(BETA[, col] != 0))
+}
+```
+
+```{r}
+# posterior confidence intervals
+for (col in 1:ncol(BETA)) {
+  print(quantile(BETA[, col], c(0.025, 0.975)))
+}
+```
+
+Using Gibbs sampling, the 95% posterior confidence intervals for "npreg", "bp", "skin", "bmi", "ped", and "age" are (-0.922899, 0.000000), (0.0000000, 0.3241354), (0.0000000, 0.3576535), (0.4266099, 1.3257586), (0.00000, 16.92295), and (0.4836515, 0.9971252), respectively.
+
+Comparing to the results in part a, we see that for "npreg", "bp", and "skin", both approaches' 95% posterior confidence intervals contains 0, meaning the coefficient for these three variables could be 0 (no effect on "glu" at all). However, Gibbs sampling resulted in (0.00000, 16.92295) as the 95% posterior confidence intervals for "ped", which includes 0, whereas the approach in part a resulted in (3.484193, 17.869760), which doesn't contain 0. This suggests that the Gibbs sampling approach indicates "ped" may not affect "glu" but the part a approach indicates the opposite, that "ped" has a positive effect on "glu".
+
+\newpage
+
+## Question 4
+
+```{r}
+# load bird count data
+bird <- readRDS("birdCount.rds")
+```
+
+### Part c
+
+```{r}
+# MCMC
+
+# start values
+alpha <- 10
+a <- 2
+b <- 1/2
+mu <- mean(bird[,2])
+S <- 10000
+
+# posterior storage
+THETA <- matrix(nrow = S, ncol = 16)
+MU <- rep(0, S)
+
+# Gibbs sampling
+for (s in 1 : S) {
+  # update theta
+  theta <- rep(0, 16)
+  for (j in 1:16){
+    y_ij <- bird[bird[,1] == j, 2]
+    n <- length(y_ij)
+    theta[j] <- rgamma(1, alpha + sum(y_ij), alpha / mu + n)
+  }
+  THETA[s,] <- theta
+
+  # update mu
+  mu <- (1/rgamma(1, 16 * alpha + a, alpha * sum(theta) + b))
+  MU[s] <- mu
+}
+```
+
+```{r}
+# plot of the prior and posterior density of mu
+mu_prior <- 1 / rgamma(S, a, b)
+plot(density(mu_prior), col = "blue", xlim = c(-1, 10), main = "Prior and Posterior Density of mu")
+lines(density(MU), col = "red")
+legend(x = "topright", legend = c("prior", "posterior"), col = c("blue", "red"), lty = 1:1)
+```
+
+```{r}
+# plot of the posterior means of the theta_j’s versus the county-level sample sizes (the n_j’s)
+theta_j.means <- apply(THETA, MARGIN = 2, mean)
+N <- rep(0, 16)
+for (j in 1:16){
+  y_ij <- bird[bird[,1] == j, 2]
+  N[j] <- length(y_ij)
+}
+
+plot(N, theta_j.means, 
+     main = "Postior Theta Means vs Sample Sizes",
+     xlab = "County-level Sample Sizes", 
+     ylab = "Postior Theta Means",
+     ylim = c(0,10))
+```
+
+```{r}
+# plot of the sample means (y_j’s) versus sample size
+sample.means <- rep(0, 16)
+for (j in 1:16){
+  y_ij <- bird[bird[,1] == j, 2]
+  sample.means[j] <- mean(y_ij)
+}
+
+plot(N, sample.means, 
+     main = "Sample Means vs Sample Sizes",
+     xlab = "County-level Sample Sizes", 
+     ylab = "Sample Means",
+     ylim = c(0,10))
+```
+
+```{r}
+# hard to see difference between two graphs, so plot difference
+plot(N, theta_j.means - sample.means, 
+     main = "Difference in Means vs Sample Sizes",
+     xlab = "County-level Sample Sizes", 
+     ylab = "Postior Theta Means - Sample Means")
+abline(h = 0)
+```
+
+We can see from the above graph that as as county-level sample sizes increases, the difference between postior theta means and sample means decreases. In fact, for smaller county-level sample sizes (e.g. size = 3), the posterior theta means are much higher than the sample means at a relative scale.

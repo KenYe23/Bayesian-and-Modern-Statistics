@@ -1,0 +1,143 @@
+---
+output:
+  html_document:
+    df_print: paged
+---
+
+STA360 Homework 1 (Ken Ye)
+
+1.  Probability review:
+
+    -   Exercise 2.2 from book
+
+        a\.
+
+        $$E[a_1Y_1+a_2Y_2] = E[a_1Y_1]+E[a_2Y_2] = a_1E[Y_1]+a_2E[Y_2] = a_1\mu_1+a_2\mu_2$$
+
+        $$Var[a_1Y_1+a_2Y_2] = Var[a_1Y_1]+Var[a_2Y_2] = a_1^2Var[Y_1]+a_2^2Var[Y_2] = a_1^2\sigma_1^2+a_2^2\sigma_2^2$$
+
+        b\.
+
+        $$E[a_1Y_1-a_2Y_2] = E[a_1Y_1]-E[a_2Y_2] = a_1E[Y_1]-a_2E[Y_2] = a_1\mu_1-a_2\mu_2$$
+
+        $$Var[a_1Y_1-a_2Y_2] = Var[a_1Y_1]+Var[a_2Y_2] = a_1^2Var[Y_1]+a_2^2Var[Y_2] = a_1^2\sigma_1^2+a_2^2\sigma_2^2$$
+
+    -   Exercise 2.4 from book
+
+        a\.
+
+        $$
+        Pr(H_j|E)Pr(E)= Pr(H_j\cap E) = Pr(E|H_j)Pr(H_j)
+        $$ (by axiom P3)
+
+        b\.
+
+        $$
+        Pr(E) = Pr(E\cap H_1) + Pr(E\cap H_2) + ... + Pr(E\cap H_k) = Pr(E\cap H_1) + Pr(E\cap \{\cup^{K}_{k=2}H_k\})
+        $$
+
+        (since $\{H_1,...,H_k\}$ is a partition of $H$)
+
+        c\.
+
+        $$
+        Pr(E) = Pr(E\cap H_1) + Pr(E\cap H_2) + ... + Pr(E\cap H_k) = \sum^{K}_{k=1}Pr(E\cap H_k)
+        $$
+
+        (since $\{H_1,...,H_k\}$ is a partition of $H$)
+
+        d\.
+
+        $$
+        \begin{aligned}
+        Pr(H_j|E)Pr(E) &= Pr(E|H_j)Pr(H_j) \ \ \ \text{by a} \\
+        Pr(H_j|E) &= \frac{Pr(E|H_j)Pr(H_j)}{Pr(E)} \\
+        Pr(H_j|E) &= \frac{Pr(E|H_j)Pr(H_j)}{\sum^{K}_{k=1}Pr(E\cap H_k)} \ \ \ \text{by c}\\
+        Pr(H_j|E) &= \frac{Pr(E|H_j)Pr(H_j)}{\sum^{K}_{k=1}Pr(E|H_k)Pr(H_k)} \\
+        \end{aligned}
+        $$
+
+2.  Sensitivity and Specificity:
+
+    a\. $$
+    Pr(F) =  Pr(E)\times Pr(F|E) + Pr(F)\times Pr(F|not E) = 0.15\times0.94+0.85\times0.08 = 0.209 \\
+    Pr(E|F) = \frac{Pr(F|E)Pr(E)}{Pr(F)} = \frac{0.94\times0.15}{0.209} \approx 0.67464
+    $$
+
+    b\.
+
+    ```{r}
+    interval <- seq(0, 1, length.out = 1000)
+
+    # e is Pr(E)
+    f <- function(e){
+      return (0.94*e / (0.94*e + 0.08*(1-e)))
+    }
+
+    plot(interval, f(interval),
+         main = 'Pr(E|F) VS Pr(E)',
+         xlab = 'Pr(E)',
+         ylab = 'Pr(E|F)')
+    ```
+
+3.  Joint distributions:
+
+    a\.
+
+    $h(y,\theta)$ is nonnegative because both $f(y,\theta)$ and $g(\theta)$ are nonnegative everywhere by defination as they are valid pdfs, implying their product $h(y,\theta)$ must be nonnegative everywhere as well.
+
+    $$
+    \int_\Theta \sum_{y\in \mathcal Y} h(y,\theta) d\theta = \int_\Theta \sum_{y\in \mathcal Y} f(y,\theta) g(\theta) d\theta = \int_\Theta 1\times g(\theta) d\theta = 1
+    $$
+
+    Therefore, $h(y,\theta)$ is a valid joint pdf on $\mathcal Y \times \Theta$.
+
+    b\.
+
+    $$
+    p(y) = \int_0^\infty p(y,\theta) d \theta = \int_0^\infty f(y,\theta)g(\theta) d \theta \\
+    p(\theta) = \sum_{y=0}^\infty p(y,\theta) = \sum_{y=0}^\infty f(y,\theta)g(\theta) = 1 \times g(\theta) = g(\theta)\\ 
+    p(y|\theta) = \frac{p(y,\theta)}{p(\theta)} = \frac{f(y,\theta)g(\theta)}{\sum_{y=0}^\infty f(y,\theta)g(\theta)} = \frac{f(y,\theta)}{\sum_{y=0}^\infty f(y,\theta)} = \frac{f(y,\theta)}{1} = f(y,\theta)\\
+    p(\theta|y) = \frac{p(y,\theta)}{p(y)} = \frac{f(y,\theta)g(\theta)}{\int_0^\infty f(y,\theta)g(\theta) d \theta}
+    $$
+
+4.  Posterior inference:
+
+    a\.
+
+    $$
+    p(\theta|y = 2) = \frac{p(y = 2|\theta)p(\theta)}{p(y = 2)} = \frac{(5\theta)^2 e^{-5\theta}/2! \times \frac{1}{101}}{\sum_{\theta=0}^1 (5\theta)^2 e^{-5\theta}/2! \times \frac{1}{101}} = \frac{(5\theta)^2 e^{-5\theta}}{\sum_{\theta=0}^1 (5\theta)^2 e^{-5\theta}}
+    $$
+
+    ```{r}
+    interval2 <- seq(0, 1, by = 1/100)
+
+    f2 <- function(theta){
+      nom <- ((5*theta)^2)*exp(-5*theta)
+      denom <- sum(nom)
+      return (nom/denom)
+    }
+
+    plot(interval2, f2(interval2),
+         main = 'p(theta|y = 2) VS theta',
+         xlab = 'theta',
+         ylab = 'p(theta|y = 2)')
+    ```
+
+    b\.
+
+    Under $p(\theta)$, median[$\theta$] = 50/100 = 1/2, mode[$\theta$] = {0, 1/100, 2/100, ... , 1}
+
+    ```{r}
+    vals <- f2(interval2)
+    median_index <- which(cumsum(vals)>= 0.5)[1]
+    median <- interval2[median_index]
+    median
+    ```
+
+    ```{r}
+    mode <- interval2[which.max(vals)]
+    mode
+    ```
+
+    Under $p(\theta | y = 2)$, median[$\theta$] = 0.2, mode[$\theta$] = 0.4
